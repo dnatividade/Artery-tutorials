@@ -2597,6 +2597,8 @@ vector
 -
 math.h
 -
+artery/networking/PositionProvider.h
+../src/artery/application/artery/networking/PositionProvider.h
 
 ../src/artery/application/Facilities.h
 cassert
@@ -2802,6 +2804,10 @@ vanetza/dcc/transmit_rate_control.hpp
 vanetza/geonet/dcc_field_generator.hpp
 -
 
+../src/artery/networking/PositionProvider.h
+artery/utility/Geometry.h
+../src/artery/networking/artery/utility/Geometry.h
+
 ../src/artery/utility/Channel.h
 functional
 -
@@ -2886,6 +2892,22 @@ vanetza/dcc/transmit_rate_control.hpp
 vanetza/facilities/cam_functions.hpp
 -
 chrono
+-
+iostream
+-
+cmath
+-
+iostream
+-
+cmath
+-
+iostream
+-
+cmath
+-
+iostream
+-
+cmath
 -
 
 /home/veins/src/omnetpp/include/omnetpp.h

@@ -4,6 +4,9 @@
 * Licensed under GPLv2, see COPYING file for detailed license and warranty terms.
 */
 
+//@dnat
+//version: 0.2_2023-10-01
+
 /* ONDE FICA O CODIGO DE RECEPCAO DE CAMS????
  * O OMNET++ disponibiliza uma função padrão, da classe cSimpleModule, para o tratamento
  * de recepções de mensagens. Buscar essa função aqui no CaService.
@@ -50,6 +53,23 @@ long round(const boost::units::quantity<T>& q, const U& u)
 	return std::round(v.value());
 }
 
+
+#include <iostream>
+#include <cmath>
+
+// Função para calcular a distância usando a fórmula de Haversine
+#include <iostream>
+#include <cmath>
+
+#include <iostream>
+#include <cmath>
+
+#include <iostream>
+#include <cmath>
+
+double CAM_X, CAM_Y;
+
+
 SpeedValue_t buildSpeedValue(const vanetza::units::Velocity& v)
 {
 	static const vanetza::units::Velocity lower { 0.0 * boost::units::si::meter_per_second };
@@ -77,8 +97,125 @@ CaService::CaService() :
 {
 }
 
-void CaService::initialize()
-{
+//@dnat
+// Função para calcular a distância usando a fórmula de Haversine
+/*
+* HAVERSINE: a fórmula de Haversine é uma das fórmulas mais simples para calcular a distância entre dois pontos geográficos em uma esfera
+*  (ou aproximadamente em uma esfera, como a Terra). Ela é adequada para distâncias curtas e usa coordenadas de latitude e longitude em graus.
+*  A distância (d) entre dois pontos (lat1, lon1) e (lat2, lon2) é calculada da seguinte forma:
+*  a = sin²((lat2 - lat1) / 2) + cos(lat1) * cos(lat2) * sin²((lon2 - lon1) / 2)
+*  c = 2 * atan2(sqrt(a), sqrt(1 - a))
+*  d = R * c
+*
+* Onde:
+*  lat1 e lat2 = as latitudes dos pontos em radianos
+*  lon1 e lon2 = as longitudes dos pontos em radianos
+*  R = o raio da Terra (em unidades de escolha, como quilômetros ou milhas)
+*/
+double CaService::haversine(double lat1, double lon1, double lat2, double lon2) {
+	// Raio da Terra em quilômetros
+	const double r = 6371.0;
+
+	// Converte graus em radianos
+	lat1 = lat1 * M_PI / 180.0;
+	lon1 = lon1 * M_PI / 180.0;
+	lat2 = lat2 * M_PI / 180.0;
+	lon2 = lon2 * M_PI / 180.0;
+
+	// Diferenças nas latitudes e longitudes
+	double dlat = lat2 - lat1;
+	double dlon = lon2 - lon1;
+
+	// Fórmula de Haversine
+	double a = sin(dlat / 2) * sin(dlat / 2) + cos(lat1) * cos(lat2) * sin(dlon / 2) * sin(dlon / 2);
+	double c = 2 * atan2(sqrt(a), sqrt(1 - a));
+
+	// Distância em quilômetros
+	double distance_km = r * c;
+
+	// Converta para metros
+	double distance_m = distance_km * 1000;
+
+	return distance_m;
+}
+
+
+//@dnat
+// Função para calcular a distância usando a fórmula de Vincenty
+/*
+ * VINCENTY: a fórmula de Vincenty é mais precisa do que a fórmula de Haversine e é adequada para cálculos de distâncias maiores na Terra.
+ * Ela leva em consideração a forma elipsoidal da Terra e utiliza coordenadas de latitude, longitude e altitude.
+ * A distância (s) entre dois pontos (lat1, lon1, alt1) e (lat2, lon2, alt2) é calculada da seguinte forma:
+ *
+ * a = semimajor axis (raio do equador)
+ * b = semiminor axis (raio do polo)
+ * f = flattening (achatamento da Terra)
+ *
+ * L = lon2 - lon1
+ * U1 = atan((1 - f) * tan(lat1))
+ * U2 = atan((1 - f) * tan(lat2))
+ * sinU1 = sin(U1), cosU1 = cos(U1)
+ * sinU2 = sin(U2), cosU2 = cos(U2)
+ *
+ * lambda = L, lambdaP = 2 * pi
+ * iterLimit = 100
+ * while (|lambda - lambdaP| > 1e-12 and iter < iterLimit):
+ *     sinLambda = sin(lambda), cosLambda = cos(lambda)
+ *     sinSigma = sqrt((cosU2 * sinLambda) * (cosU2 * sinLambda) + (cosU1 * sinU2 - sinU1 * cosU2 * cosLambda) * (cosU1 * sinU2 - sinU1 * cosU2 * cosLambda))
+ *     cosSigma = sinU1 * sinU2 + cosU1 * cosU2 * cosLambda
+ *     sigma = atan2(sinSigma, cosSigma)
+ *     sinAlpha = cosU1 * cosU2 * sinLambda / sinSigma
+ *     cosSqAlpha = 1 - sinAlpha * sinAlpha
+ *     cos2SigmaM = cosSigma - 2 * sinU1 * sinU2 / cosSqAlpha
+ *     C = f / 16 * cosSqAlpha * (4 + f * (4 - 3 * cosSqAlpha))
+ *     lambdaP = lambda
+ *     lambda = L + (1 - C) * f * sinAlpha * (sigma + C * sinSigma * (cos2SigmaM + C * cosSigma * (-1 + 2 * cos2SigmaM * cos2SigmaM)))
+ * s = b * atan2(sqrt(1 + (1 - f) * (1 - f) * cosAlpha * cosAlpha) * sinAlpha, cosAlpha)
+ *
+ * Onde:
+ *  lat1, lat2 = as latitudes dos pontos em radianos.
+ *  lon1, lon2 = as longitudes dos pontos em radianos.
+ *  alt1, alt2 = as altitudes dos pontos acima do elipsoide (geralmente em metros)
+ *  a = o semieixo maior da Terra
+ *  b = o semieixo menor da Terra
+ *  f = o achatamento da Terra
+ */
+double CaService::vincenty(double lat1, double lon1, double alt1, double lat2, double lon2, double alt2) {
+	// Raio médio da Terra (semi-eixo maior) em metros
+	const double a = 6378137.0;
+
+	// Achatamento da Terra (f) - aproximadamente 1/298.257223563
+	const double f = 1 / 298.257223563;
+
+	// Cálculos de latitude reduzida
+	double lat1_rad = atan((1 - f) * tan(lat1 * M_PI / 180.0));
+	double lat2_rad = atan((1 - f) * tan(lat2 * M_PI / 180.0));
+
+	// Diferenças nas longitudes
+	double lon_diff = abs(lon2 - lon1) * M_PI / 180.0;
+
+	// Cálculos intermediários
+	double sin_lat1 = sin(lat1_rad);
+	double cos_lat1 = cos(lat1_rad);
+	double sin_lat2 = sin(lat2_rad);
+	double cos_lat2 = cos(lat2_rad);
+
+	// Fórmula de Vincenty
+	double numerator = sqrt(pow(cos_lat2 * sin(lon_diff), 2) + pow(cos_lat1 * sin_lat2 - sin_lat1 * cos_lat2 * cos(lon_diff), 2));
+	double denominator = sin_lat1 * sin_lat2 + cos_lat1 * cos_lat2 * cos(lon_diff);
+
+	// Ângulo azimutal inicial entre os pontos
+	double azimuth1 = atan2(cos_lat2 * sin(lon_diff), cos_lat1 * sin_lat2 - sin_lat1 * cos_lat2 * cos(lon_diff));
+
+	// Cálculo da distância
+	double s = atan2(numerator, denominator);
+	double distance = s * a;
+
+	return distance;
+}
+
+
+void CaService::initialize() {
 	ItsG5BaseService::initialize();
 	mNetworkInterfaceTable = &getFacilities().get_const<NetworkInterfaceTable>();
 	mVehicleDataProvider = &getFacilities().get_const<VehicleDataProvider>();
@@ -112,9 +249,9 @@ void CaService::initialize()
 
 	// Gravando dados de inicializacao da simulacao
 	//this->logfile_CAM << "time,vehicle,position,payload\n";
-	//std::cout << mVehicleDataProvider->station_id() << endl;
 
-	//myId = mVehicleDataProvider->station_id();
+	//@dnat
+	//std::cout << "ID: " << mVehicleDataProvider->station_id() << endl; //DEBUG ONLY
 }
 
 void CaService::trigger()
@@ -124,10 +261,10 @@ void CaService::trigger()
 
 }
 
+
 // Acho que é nesta função que a recepção de CAMs é realizada
 // Como solicitar que o ID da mensagem seja incluida nos traces de resultados
-void CaService::indicate(const vanetza::btp::DataIndication& ind, std::unique_ptr<vanetza::UpPacket> packet)
-{
+void CaService::indicate(const vanetza::btp::DataIndication& ind, std::unique_ptr<vanetza::UpPacket> packet) {
 	Enter_Method("indicate");
 
 	Asn1PacketVisitor<vanetza::asn1::Cam> visitor;
@@ -136,8 +273,112 @@ void CaService::indicate(const vanetza::btp::DataIndication& ind, std::unique_pt
 		CaObject obj = visitor.shared_wrapper;
 		emit(scSignalCamReceived, &obj);
 		mLocalDynamicMap->updateAwareness(obj);
+
+	    //@dnat /////////////////////////////////////////////////
+		/* Estou fazendo testes com os veiculos: ID:11 e ID96
+		 * ID:96 enviando a msg CAM e ID:11 recebendo a msg CAM
+		*/
+		// //////////////////////////////////////////////////////
+
+		// se veículo ID:11 está recebendo uma msg CAM do veículo ID:96...
+	    if (mVehicleDataProvider->station_id() == 11 and (*cam)->header.stationID == 96) {
+			auto posCamLat = (*cam)->cam.camParameters.basicContainer.referencePosition.latitude;  //obtém a latitude do veículo ID:96 na msg CAM
+			auto posCamLon = (*cam)->cam.camParameters.basicContainer.referencePosition.longitude; //obtém a longitude do veículo ID:96 na msg CAM
+
+			double lat1, lat2, lon1, lon2, alt1, alt2; //variáveis temporárias: latitude, longitude e altitude (esta usada apenas na eq. de Vincenty)
+			double X = 0, Y = 0, d = 0, D = 0;		   //variáveis temporárias para o "cálculo de prova" (veja explicação a diante)
+
+			/*
+			 *  Latitude/Longitude são recebidas na msg CAM como inteiros, mas precisamos converte-las para float
+			 *  Para isso, dividimos por 10.000.000
+			 *
+			 *  Ex.:
+			 *  Latitude recebida: 492529854
+			 *  Latitude convertida: 492529854 / 10000000.0 = 49.2529854
+			*/
+			lat1 = posCamLat/10000000.0; //converte para float a latitude recebida
+			lon1 = posCamLon/10000000.0; //converte para float a latitude recebida
+
+			/*
+			 * Aqui eu obtenho as coordenadas (latitude/longitude) atuais do veiculo que está recebendo a msg CAM
+			*/
+			const PositionProvider* mPositionProvider1 = nullptr;
+			mPositionProvider1 = &getFacilities().get_const<PositionProvider>(); //tipo de dados (struct) contendo latidude e longitude
+			lat2 = mPositionProvider1->getGeodeticPosition().latitude.value();	 //pego somente a latitude
+			lon2 = mPositionProvider1->getGeodeticPosition().longitude.value();	 //pego somente a longitude
+
+			/*
+			 * A fim de encontrar a melhor formula para calcular a distancias entre os dois nós, implementei as formulas de *Haversine* e *Vincenty*
+			 * Harversine é mais simples
+			 * Vincenty é mais complexa e leva em consideração a altitudo, que neste caso estou setando em ZERO
+			 *
+			 * De acordo com a documentação do Atery,
+			 * "GeoPosition representa um dado geodésico horizontal (latitude e longitude). Salvo indicação em contrário, o dado refere-se ao elipsóide WGS84".
+			 *
+			 *  Uma coordenada geodésica (ou geodética) é um sistema de coordenadas que descreve a posição de um ponto na superfície de um objeto tridimensional,
+			 *  como a Terra, usando valores de latitude, longitude e altitude (ou altura) acima de uma superfície de referência, geralmente um elipsoide que se
+			 *  ajusta ao formato da Terra. Aqui está uma breve explicação dos componentes das coordenadas geodésicas:
+			 *
+			 *  Latitude: é a medida angular da posição de um ponto em relação ao equador terrestre. Ela varia de -90 graus (pólo sul) a +90 graus (pólo norte)
+			 *  e é representada em graus, minutos e segundos (por exemplo, 40° 26' 46" N). A latitude 0° corresponde à linha do equador.
+			 *
+			 *  Longitude: é a medida angular da posição de um ponto em relação ao meridiano de Greenwich (ou outro meridiano de referência).
+			 *  Ela varia de -180 graus a +180 graus e também é representada em graus, minutos e segundos (por exemplo, 73° 58' 26" W). A longitude 0°
+			 *  corresponde ao meridiano de Greenwich.
+			 *
+			 *  Altitude (ou Altura): é a distância vertical de um ponto em relação a uma superfície de referência. Geralmente, a altitude é medida em metros
+			 *  acima ou abaixo de um elipsoide de referência, como o WGS 84 (World Geodetic System 1984).
+			 *
+			 *  As coordenadas geodésicas são usadas para descrever a localização precisa de pontos na Terra ou em outros corpos celestes. Elas são amplamente
+			 *  utilizadas em geodésia, cartografia, navegação, geofísica e em muitas outras disciplinas que envolvem a representação precisa da superfície da
+			 *  Terra ou a localização de objetos na Terra.
+			 *  É importante notar que, para cálculos de distância precisa entre pontos na superfície da Terra, especialmente em distâncias maiores (que não é
+			 *  o nosso caso), é necessário levar em consideração a forma elipsoidal da Terra, em vez de assumir uma esfera perfeita. Isso é feito usando
+			 *  fórmulas geodésicas como a fórmula de Vincenty.
+			*/
+			// Calcula a distância entre dois pontos no Globo Terrestre usando a equação de Vincenty
+			double distanceV_m = vincenty(lat1, lon1, 0, lat2, lon2, 0);
+
+			// Calcula a distância entre dois pontos no Globo Terrestre usando a equação de Haversine
+			double distanceH_m = haversine(lat1, lon1, lat2, lon2);
+
+			/*
+			 *  "CALCULO DE PROVA"
+			 *    d = √((x2 - x1)² + (y2 - y1)²)
+			 *
+			 *   o "cálculo de prova" é um cálculo realizado obtendo a posição em metros (x,y) do veículo que recebe a msg CAM
+			 *   e a posição em metros (x,y) do veículo que envia a msg CAM. Utiliza-se a distância Euclidiana para este cálculo.
+			 *   Como a posição (x,y) não e enviada na msg CAM (somente coordenadas lat/long), para fazer esse teste, eu criei duas variáveis globais,
+			 *   CAM_X e CAM_Y, que são setadas com as posições X e Y, respectivamente, do veículo que envia a msg CAM (neste exemplo o ID:96).
+			 *   Por se tratar de uma variável global desta classe, todos os veículos podem acessá-la.
+			 *
+			 *   Desta forma, o veículo que recebe a msg CAM faz o cálculo que chamei de "calculo de prova", a fim de verificar se os
+			 *   cálculos com as equações de Harvesine e Vinventy convergem.
+			*/
+			// Variáveis usadas no "cálculo de prova", que recebem a posição X,Y do veículo que recebe a msg CAM
+			double CAR_X = mVehicleDataProvider->position().x.value(); //variável temporária para a posição X do veículo que recebeu a msg CAM
+			double CAR_Y = mVehicleDataProvider->position().y.value(); //variável temporária para a posição X do veículo que recebeu a msg CAM
+
+			X = pow((CAM_X - CAR_X), 2); //diferença entre o X do veículo que recebeu e o X do veículo que enviou a msg CAM, elevado ao quadrado = (x1-x2)²
+			Y = pow((CAM_Y - CAR_Y), 2); //diferença entre o Y do veículo que recebeu e o Y do veículo que enviou a msg CAM, elevado ao quadrado = (y1-y2)²
+			D = sqrt(X+Y); //a distância (D) é a raíz quadrada da soma dos valores encontrados nas duas equações anteriores
+
+			/*
+			 * Print information:
+			 * ID Sent: ID do veículo que enviou a msg CAM
+			 * ID Recv: ID do veículo que recebeu a msg CAM
+			 *
+			 * H: distância obtida usando a equação de Haversine
+			 * V: distância obtida usando a equação de Vincenty
+			 * E: distância Euclidiana - "cálculo de prova"
+			 */
+			std::cout << "ID Sent: " << (*cam)->header.stationID << " Lat/Lon: " << lat1 << "/" << lon1; //print information
+			std::cout << " | ID Recv: " << mVehicleDataProvider->station_id() << " Lat/Lon: " << lat2 << "/" << lon2; //print information
+			std::cout << " | Dist. V: " << distanceV_m << " / H: " << distanceH_m << " / E: " << D << endl;
+         }
 	}
-/*
+
+/*  // DISTANCIA -- [ OK ]
     //@dnat///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     //std::cout << "@dnat - Estou em: CaService.cc - indicate() | SimTime:" << simTime() << endl;
     std::cout << "ID: " << mVehicleDataProvider->station_id() << " | ";
@@ -152,8 +393,12 @@ void CaService::indicate(const vanetza::btp::DataIndication& ind, std::unique_pt
     std::cout << "Speed: " << speedValue << " m/s | ";
 
     // Imprime a posição (x,y)
-    std::cout << "Position (x, y): (" << mVehicleDataProvider->position().x.value() << "m, ";
-    std::cout << mVehicleDataProvider->position().y.value() << "m)" << endl;
+    //std::cout << "Position (x, y): (" << mVehicleDataProvider->position().x.value() << "m, ";
+    //std::cout << mVehicleDataProvider->position().y.value() << "m)" << endl;
+
+    // Imprime a posição (latitude,longitude)  -- ONT WORK
+    //std::cout << "Position (lat, lon): (" << mVehicleDataProvider->position().latitude.value() << "m, ";
+    //std::cout << mVehicleDataProvider->position().longitude.value() << "m)" << endl;
 
     //artery::Position vehiclePosition = mVehicleDataProvider->position();
     //double positionValue = vehiclePosition.x().value(); //vehiclePosition.value();
@@ -251,6 +496,23 @@ void CaService::sendCam(const SimTime& T_now)
 	//std::cout << "Position:" << mVehicleDataProvider->position() << ",Speed:" << mVehicleDataProvider->speed();
 
     //@dnat///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	if (mVehicleDataProvider->station_id() == 96) {
+		CAM_X = mVehicleDataProvider->position().x.value();
+		CAM_Y = mVehicleDataProvider->position().y.value();
+	}
+
+
+	//@dnat///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    /*
+	if (mVehicleDataProvider->station_id() == 11) {
+        std::cout << "SimTIme: " << simTime() << " | MyID: " << mVehicleDataProvider->station_id() << " | msg sent -->" << endl;
+    } */
+
+
+
+
+	/* DISTANCIA PERCORRIDA -- [ OK ]
+    //@dnat///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	if (mVehicleDataProvider->station_id() == 11) {
 	    //std::cout << "@dnat - Estou em: CaService.cc - indicate() | SimTime:" << simTime() << endl;
 	    std::cout << "SimTime: " << simTime() << " | ID: " << mVehicleDataProvider->station_id() << " | ";
@@ -268,6 +530,7 @@ void CaService::sendCam(const SimTime& T_now)
         vecY.push_back(mVehicleDataProvider->position().y.value());
 	}
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+*/
 }
 
 SimTime CaService::genCamDcc()
@@ -389,6 +652,7 @@ void CaService::finish() {
     this->logfile_CAM << "CaService finished\n";
     this->logfile_CAM.close();
 
+    /*// DISTANCIA PERCORRIDA -- [ OK ]
     if (mVehicleDataProvider->station_id() == 11) {
         double X = 0, Y = 0, d = 0, D = 0;
         std::cout << endl << endl;
@@ -405,6 +669,7 @@ void CaService::finish() {
         }
         std::cout << endl << "ID: " << mVehicleDataProvider->station_id() << " | Distância percorrida: " << D << "m" << endl;
     }
+    */
 }
 
 } // namespace artery

@@ -792,6 +792,7 @@ src/artery/CMakeFiles/core.dir/application/CaService.cc.o
  ../src/artery/application/VehicleDataProvider.h
  ../src/artery/application/VehicleKinematics.h
  ../src/artery/networking/IDccEntity.h
+ ../src/artery/networking/PositionProvider.h
  ../src/artery/utility/Channel.h
  ../src/artery/utility/Geometry.h
  ../src/artery/utility/Identity.h

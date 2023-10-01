@@ -4,6 +4,9 @@
 * Licensed under GPLv2, see COPYING file for detailed license and warranty terms.
 */
 
+//@dnat
+//version: 0.2_2023-10-01
+
 #ifndef ARTERY_CASERVICE_H_
 #define ARTERY_CASERVICE_H_
 
@@ -25,6 +28,7 @@
 #include "veins/modules/mac/ieee80211p/DemoBaseApplLayerToMac1609_4Interface.h"
 #include <vector>
 #include <math.h>
+#include "artery/networking/PositionProvider.h"
 
 
 namespace artery
@@ -79,8 +83,10 @@ class CaService : public ItsG5BaseService
 		std::ofstream logfile_CAM;
 
 		//@dnat
-        std::vector<double> vecX;
-        std::vector<double> vecY;
+		double haversine(double lat1, double lon1, double lat2, double lon2);
+		double vincenty(double lat1, double lon1, double alt1, double lat2, double lon2, double alt2);
+        //std::vector<double> vecX;
+        //std::vector<double> vecY;
 };
 
 vanetza::asn1::Cam createCooperativeAwarenessMessage(const VehicleDataProvider&, uint16_t genDeltaTime);
