@@ -21,3 +21,11 @@ If you want to build the website yourself see also [our mkdocs guide](http://art
 Estou aprendendo a usar o Artery.
 Aqui eu coloco alguns códigos que estou testando...
 
+---
+
+## Run
+
+```
+cmake --build build --target run_example
+```
+
